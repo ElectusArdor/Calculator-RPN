@@ -1,4 +1,3 @@
-using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
@@ -7,35 +6,44 @@ using System;
 
 public class Calculator : MonoBehaviour
 {
-    [SerializeField] private InputField numInpField, sigInpField;
+    [SerializeField] private InputField numInpField;
     [SerializeField] private Text resultText;
 
-    private List<float> nums;
-    private List<string> listOfSimbols;
-    private string[] allSigns = { "+", "-", "*", "/", "^" };
+    private Dictionary<string, Func<float, float, float>> functions;    //  Dictionary of available functions
+    private List<string> listOfSimbols; //  List-converted user-supplied string
+    private List<float> nums;   //  The current list of values when the input string is processed by the loop
     private bool error;
-
-    private void Start()
-    {
-        Screen.SetResolution(900, 900, false);
-    }
 
     Func<float, float, float> Plus = (a, b) => a + b;
     Func<float, float, float> Minus = (a, b) => a - b;
     Func<float, float, float> Multiply = (a, b) => a * b;
     Func<float, float, float> Division = (a, b) => a / b;
     Func<float, float, float> Pow = (a, b) => Mathf.Pow(a, b);
+    Func<float, float, float> Root = (a, b) => Mathf.Pow(b, 1 / a);
+    Func<float, float, float> Percents = (a, b) => a / b * 100;
+
+    void Start()
+    {
+        functions = new Dictionary<string, Func<float, float, float>> {
+            { "+", Plus },
+            { "-", Minus },
+            { "*", Multiply },
+            { "/", Division },
+            { "^", Pow },
+            { "r", Root },
+            { "%", Percents } };
+    }
 
     public void OnCalcClick()
     {
-        error = false;
+        error = false;  //  Reset the error
         listOfSimbols = numInpField.text.Split(' ').ToList<string>();
         nums = new List<float>();
         resultText.text = "";
 
-        for (int i = 0; i < listOfSimbols.Count; i++)
+        foreach (string str in listOfSimbols)
         {
-            if (allSigns.Contains(listOfSimbols[i]))
+            if (functions.Keys.Contains(str))
             {
                 if (nums.Count < 2)
                 {
@@ -44,32 +52,22 @@ public class Calculator : MonoBehaviour
                 }
                 else
                 {
-                    if (listOfSimbols[i] == "^")
-                        Calculate(Pow);
-                    else if (listOfSimbols[i] == "/")
+                    if (str == "/" & nums[nums.Count - 1] == 0)
                     {
-                        if (nums[nums.Count - 1] == 0)
-                        {
-                            Output("Ошибка. Деление на 0");
-                            error = true;
-                            break;
-                        }
-                        else
-                            Calculate(Division);
+                        Output("Ошибка. Деление на 0");
+                        error = true;
+                        break;
                     }
-                    else if (listOfSimbols[i] == "*")
-                        Calculate(Multiply);
-                    else if (listOfSimbols[i] == "+")
-                        Calculate(Plus);
                     else
-                        Calculate(Minus);
+                        Calculate(functions[str]);
                 }
             }
+            else if (str == "") { } //  User tremor protection
             else
             {
                 try
                 {
-                    nums.Add(float.Parse(listOfSimbols[i]));
+                    nums.Add(float.Parse(str));
                 }
                 catch
                 {
@@ -90,6 +88,9 @@ public class Calculator : MonoBehaviour
             Output(nums[0].ToString());
     }
 
+    ///<summary>
+    ///     Calls the passed function and updates the list of values
+    ///</summary>
     private void Calculate(Func<float, float, float> func)
     {
         nums[nums.Count - 2] = func(nums[nums.Count - 2], nums[nums.Count - 1]);
